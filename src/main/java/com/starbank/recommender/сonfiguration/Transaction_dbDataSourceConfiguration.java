@@ -10,7 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import javax.sql.DataSource;
 
 @Configuration
-public class TransactionDataSourceConfiguration {
+public class Transaction_dbDataSourceConfiguration {
     @Bean(name = "transactionDataSource")
     public DataSource transactionDataSource(
             @Value("${application.transaction-db.url}") String transactionUrl) {

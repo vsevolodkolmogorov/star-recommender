@@ -1,6 +1,8 @@
 package com.starbank.recommender.repository;
 
-import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -13,15 +15,25 @@ import java.util.UUID;
 import static com.starbank.recommender.repository.constant.SQLQuery.FIND_USER_BY_ID;
 
 @Repository
-@RequiredArgsConstructor
 public class UserRepository {
-    private final JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate transactionDataSource;
     private final UserMapper mapper;
+
+    Logger logger= LoggerFactory.getLogger(UserRepository.class);
+
+    public UserRepository(@Qualifier("transactionJdbcTemplate") JdbcTemplate transactionDataSource,
+                          UserMapper mapper) {
+        this.transactionDataSource = transactionDataSource;
+        this.mapper = mapper;
+    }
 
     public Optional<User> findById(UUID id) {
         try {
-            return Optional.ofNullable(jdbcTemplate.queryForObject(FIND_USER_BY_ID, mapper, id));
+            User user = transactionDataSource.queryForObject(FIND_USER_BY_ID, mapper, id);
+            logger.info("User found: {}", user);
+            return Optional.ofNullable(user);
         } catch (EmptyResultDataAccessException e) {
+            logger.info("User with id '{}' not found", id);
             return Optional.empty();
         }
     }

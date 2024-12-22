@@ -1,6 +1,6 @@
 package com.starbank.recommender.repository;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -14,14 +14,19 @@ import java.util.UUID;
 import static com.starbank.recommender.repository.constant.SQLQuery.FIND_ALL_TRANSACTION_BY_USER_ID;
 
 @Repository
-@RequiredArgsConstructor
 public class TransactionRepository {
-    private final JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate transactionDataSource;
     private final TransactionMapper mapper;
+
+    public TransactionRepository(@Qualifier("transactionJdbcTemplate") JdbcTemplate transactionDataSource,
+                                 TransactionMapper mapper) {
+        this.transactionDataSource = transactionDataSource;
+        this.mapper = mapper;
+    }
 
     public List<Transaction> findAllTransactionByUserId(UUID id) {
         try {
-            return jdbcTemplate.queryForStream(FIND_ALL_TRANSACTION_BY_USER_ID, mapper, id)
+            return transactionDataSource.queryForStream(FIND_ALL_TRANSACTION_BY_USER_ID, mapper, id)
                     .toList();
         } catch (EmptyResultDataAccessException e) {
             return Collections.emptyList();

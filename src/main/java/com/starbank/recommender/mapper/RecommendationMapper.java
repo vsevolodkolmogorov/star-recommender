@@ -14,6 +14,6 @@ public class RecommendationMapper implements RowMapper <Recommendation> {
         return new Recommendation()
                 .setId(rs.getObject("ID", UUID.class))
                 .setName(rs.getString("NAME"))
-                .setSpecification(rs.getString("SPECIFICATION"));
+                .setSpecification(rs.getString("DESCRIPTION"));
     }
 }

@@ -1,6 +1,6 @@
 package com.starbank.recommender.repository;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -12,15 +12,21 @@ import java.util.Optional;
 import static com.starbank.recommender.repository.constant.SQLQuery.FIND_RECOMMENDATION_BY_NAME;
 
 @Repository
-@RequiredArgsConstructor
 public class RecommendationRepository {
-    private final JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate recommendationJdbcTemplate;
     private final RowMapper<Recommendation> mapper;
+
+    public RecommendationRepository(@Qualifier("recommendationJdbcTemplate") JdbcTemplate recommendationJdbcTemplate,
+                                    RowMapper<Recommendation> mapper) {
+        this.recommendationJdbcTemplate = recommendationJdbcTemplate;
+        this.mapper = mapper;
+    }
 
     public Optional<Recommendation> findByName(String name) {
         try {
-            return Optional.ofNullable(jdbcTemplate.queryForObject(FIND_RECOMMENDATION_BY_NAME, mapper, name));
+            return Optional.ofNullable(recommendationJdbcTemplate.queryForObject(FIND_RECOMMENDATION_BY_NAME, mapper, name));
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
+    }
 }

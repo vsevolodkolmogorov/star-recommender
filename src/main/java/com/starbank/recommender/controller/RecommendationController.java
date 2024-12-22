@@ -18,6 +18,6 @@ public class RecommendationController {
 
     @GetMapping("{userId}")
     public UserRecommendationSet getRecommendations(@PathVariable UUID userId) {
-        return recommendationService.getUserRecommendationSet(userId);
+        return recommendationService.checkRecommendation(userId);
     }
 }
