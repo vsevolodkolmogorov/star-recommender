@@ -1,6 +1,7 @@
 package com.starbank.recommender.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import com.starbank.recommender.mapper.UserMapper;
@@ -9,6 +10,8 @@ import com.starbank.recommender.model.User;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.starbank.recommender.repository.constant.SQLQuery.FIND_USER_BY_ID;
+
 @Repository
 @RequiredArgsConstructor
 public class UserRepository {
@@ -16,6 +19,10 @@ public class UserRepository {
     private final UserMapper mapper;
 
     public Optional<User> findById(UUID id) {
-        return Optional.ofNullable(jdbcTemplate.queryForObject("SELECT * FROM USERS WHERE ID = ?", mapper, id));
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(FIND_USER_BY_ID, mapper, id));
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
     }
 }
