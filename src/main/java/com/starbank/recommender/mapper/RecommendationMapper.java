@@ -12,8 +12,8 @@ public class RecommendationMapper implements RowMapper <Recommendation> {
     @Override
     public Recommendation mapRow(ResultSet rs, int rowNum) throws SQLException {
         return new Recommendation()
-                .setId(rs.getObject("ID", UUID.class))
                 .setName(rs.getString("NAME"))
-                .setSpecification(rs.getString("DESCRIPTION"));
+                .setId(rs.getObject("ID", UUID.class))
+                .setText(rs.getString("DESCRIPTION"));
     }
 }

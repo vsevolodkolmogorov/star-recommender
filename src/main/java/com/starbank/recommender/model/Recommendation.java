@@ -8,7 +8,7 @@ import java.util.UUID;
 @Data
 @Accessors(chain = true)
 public class Recommendation {
-    private UUID id;
     private String name;
-    private String specification;
+    private UUID id;
+    private String text;
 }
