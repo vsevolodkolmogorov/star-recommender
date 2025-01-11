@@ -1,8 +1,11 @@
 package com.starbank.recommender.controller;
 
+import com.starbank.recommender.dto.RecommendationRuleDTO;
 import com.starbank.recommender.model.RecommendationRule;
 import com.starbank.recommender.service.RuleService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,9 +22,10 @@ public class RuleController {
         return ruleService.getAllRules();
     }
 
-    @PostMapping()
-    public RecommendationRule addRule(@RequestBody RecommendationRule rule) {
-        return ruleService.addRule(rule);
+    @PostMapping(consumes = "application/json", produces = "application/json")
+    public ResponseEntity<RecommendationRule> createRecommendation(@RequestBody RecommendationRuleDTO recommendationRuleDTO) {
+        RecommendationRule recommendation = ruleService.addRule(recommendationRuleDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(recommendation);
     }
 
     @DeleteMapping("{ruleId}")
