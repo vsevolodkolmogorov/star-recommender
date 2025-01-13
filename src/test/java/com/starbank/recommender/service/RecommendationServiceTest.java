@@ -1,17 +1,17 @@
-package com.starbank.recommender.serviceTest;
+package com.starbank.recommender.service;
 
 import com.starbank.recommender.dto.UserRecommendationSet;
 import com.starbank.recommender.exception.UserNotFoundException;
 import com.starbank.recommender.model.Recommendation;
 import com.starbank.recommender.model.User;
 import com.starbank.recommender.repository.UserRepository;
-import com.starbank.recommender.service.RecommendationService;
 import com.starbank.recommender.service.utility.RecommendationRuleSet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -103,6 +103,7 @@ public class RecommendationServiceTest {
         assertEquals(userId, result.getUserId());
         assertTrue(result.getRecommendations().isEmpty());
     }
+
     @Test
     void RecommendationServiceNonexistTest() {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
