@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static com.starbank.recommender.repository.constant.SQLQuery.FIND_USER_BY_ID;
+import static com.starbank.recommender.repository.constant.SQLQuery.FIND_USER_BY_USERNAME;
 
 @Repository
 public class UserRepository {
@@ -34,6 +35,17 @@ public class UserRepository {
             return Optional.ofNullable(user);
         } catch (EmptyResultDataAccessException e) {
             logger.info("User with id '{}' not found", id);
+            return Optional.empty();
+        }
+    }
+
+    public Optional<User> findByUsername(String username) {
+        try {
+            User user = transactionDataSource.queryForObject(FIND_USER_BY_USERNAME, mapper, username);
+            logger.info("User found: {}", user);
+            return Optional.ofNullable(user);
+        } catch (EmptyResultDataAccessException e) {
+            logger.info("User with username '{}' not found", username);
             return Optional.empty();
         }
     }

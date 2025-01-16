@@ -1,4 +1,4 @@
-package com.starbank.recommender.сonfiguration;
+package com.starbank.recommender.configuration;
 
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
