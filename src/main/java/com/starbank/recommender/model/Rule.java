@@ -26,4 +26,8 @@ public class Rule {
     @ManyToOne
     @JoinColumn(name = "recommendation_id")
     private RecommendationRule recommendationRule;
+
+    public Boolean isNegate() {
+        return this.negate;
+    }
 }

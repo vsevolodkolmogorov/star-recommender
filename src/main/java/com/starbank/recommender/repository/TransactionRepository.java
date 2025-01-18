@@ -32,4 +32,61 @@ public class TransactionRepository {
             return Collections.emptyList();
         }
     }
+
+    // TODO: переработать дальнейшее
+    public boolean isUserOfProductType(UUID userId, String productType) {
+        String sql = "SELECT COUNT(*) FROM transactions t JOIN products p ON t.product_id = p.id WHERE t.user_id = ? AND p.type = ?";
+        Integer count = transactionDataSource.queryForObject(sql, Integer.class, userId.toString(), productType);
+        return count != null && count > 0;
+    }
+
+    public boolean isUserActiveOfProductType(UUID userId, String productType) {
+        String sql = "SELECT COUNT(*) FROM transactions t JOIN products p ON t.product_id = p.id WHERE t.user_id = ? AND p.type = ? GROUP BY t.product_id HAVING COUNT(*) >= 5";
+        Integer count = transactionDataSource.queryForObject(sql, Integer.class, userId.toString(), productType);
+        return count != null && count > 0;
+    }
+
+    public boolean compareTransactionSum(UUID userId, String productType, String transactionType, String comparison, int amount) {
+        String sql = "SELECT SUM(amount) FROM transactions WHERE user_id = ? AND product_type = ? AND transaction_type = ?";
+        Integer sum = transactionDataSource.queryForObject(sql, Integer.class, userId.toString(), productType, transactionType);
+
+        if (sum == null) {
+            sum = 0;
+        }
+
+        return switch (comparison) {
+            case ">" -> sum > amount;
+            case "<" -> sum < amount;
+            case "=" -> sum.equals(amount);
+            case ">=" -> sum >= amount;
+            case "<=" -> sum <= amount;
+            default -> throw new IllegalArgumentException("");
+        };
+    }
+
+    public boolean compareDepositWithdrawSum(UUID userId, String productType, String comparison) {
+        String depositSql = "SELECT SUM(amount) FROM transactions WHERE user_id = ? AND product_type = ? AND transaction_type = 'DEPOSIT'";
+        String withdrawSql = "SELECT SUM(amount) FROM transactions WHERE user_id = ? AND product_type = ? AND transaction_type = 'WITHDRAW'";
+
+        Integer depositSum = transactionDataSource.queryForObject(depositSql, Integer.class, userId.toString(), productType);
+        Integer withdrawSum = transactionDataSource.queryForObject(withdrawSql, Integer.class, userId.toString(), productType);
+
+        if (depositSum == null) {
+            depositSum = 0;
+        }
+
+        if (withdrawSum == null) {
+            withdrawSum = 0;
+        }
+
+        return switch (comparison) {
+            case ">" -> depositSum > withdrawSum;
+            case "<" -> depositSum < withdrawSum;
+            case "=" -> depositSum.equals(withdrawSum);
+            case ">=" -> depositSum >= withdrawSum;
+            case "<=" -> depositSum <= withdrawSum;
+            default -> throw new IllegalArgumentException("");
+        };
+    }
+
 }
