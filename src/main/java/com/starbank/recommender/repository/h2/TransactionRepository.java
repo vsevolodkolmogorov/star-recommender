@@ -33,7 +33,8 @@ public class TransactionRepository {
         }
     }
 
-    // TODO: переработать дальнейшее
+    // Работаем с транзакциями учитывая динамические правила
+
     public boolean isUserOfProductType(UUID userId, String productType) {
         String sql = "SELECT COUNT(*) FROM transactions t JOIN products p ON t.product_id = p.id WHERE t.user_id = ? AND p.type = ?";
         Integer count = transactionDataSource.queryForObject(sql, Integer.class, userId.toString(), productType);

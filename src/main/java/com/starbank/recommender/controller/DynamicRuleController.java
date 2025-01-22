@@ -25,7 +25,7 @@ public class DynamicRuleController {
     @PostMapping(consumes = "application/json", produces = "application/json")
     public ResponseEntity<DynamicRule> createDynamicRule(@RequestBody DynamicRuleDTO dynamicRuleDTO) {
         DynamicRule rule = dynamicRuleService.addDynamicRule(dynamicRuleDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(rule);
+        return ResponseEntity.status(HttpStatus.OK).body(rule);
     }
 
     @DeleteMapping("{ruleId}")
