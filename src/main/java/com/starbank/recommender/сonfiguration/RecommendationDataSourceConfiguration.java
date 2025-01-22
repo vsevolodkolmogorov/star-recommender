@@ -12,7 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import javax.sql.DataSource;
 
 @Configuration
-public class Recommendation_dbDataSourceConfiguration {
+public class RecommendationDataSourceConfiguration {
     @Primary
     @Bean(name = "defaultDataSource")
     public DataSource defaultDataSource(DataSourceProperties properties) {

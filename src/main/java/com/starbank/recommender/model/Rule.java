@@ -1,5 +1,7 @@
 package com.starbank.recommender.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -10,13 +12,14 @@ import java.util.UUID;
 @Data
 @Accessors(chain = true)
 @Entity
+@Table(name = "rule")
 public class Rule {
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Schema(hidden = true)
     private UUID rule_id;
 
     private String query;
-    private Boolean negate;
 
     @ElementCollection
     @CollectionTable(name = "argument", joinColumns = @JoinColumn(name = "rule_id"))
@@ -24,8 +27,12 @@ public class Rule {
     private List<String> arguments;
 
     @ManyToOne
-    @JoinColumn(name = "recommendation_id")
-    private RecommendationRule recommendationRule;
+    @Schema(hidden = true)
+    @JoinColumn(name = "dynamic_rule_id", referencedColumnName = "id", nullable = false)
+    @JsonBackReference
+    private DynamicRule dynamicRule;
+
+    private Boolean negate;
 
     public Boolean isNegate() {
         return this.negate;

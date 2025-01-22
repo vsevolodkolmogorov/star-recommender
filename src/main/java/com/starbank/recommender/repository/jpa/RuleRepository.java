@@ -1,4 +1,4 @@
-package com.starbank.recommender.repository;
+package com.starbank.recommender.repository.jpa;
 
 import com.starbank.recommender.model.Rule;
 import org.springframework.data.jpa.repository.JpaRepository;

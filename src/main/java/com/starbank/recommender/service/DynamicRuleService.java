@@ -1,12 +1,16 @@
 package com.starbank.recommender.service;
 
-import com.starbank.recommender.dto.RecommendationRuleDTO;
+import com.starbank.recommender.dto.DynamicRuleDTO;
 import com.starbank.recommender.dto.RuleDTO;
 import com.starbank.recommender.model.Argument;
 import com.starbank.recommender.model.Recommendation;
-import com.starbank.recommender.model.RecommendationRule;
+import com.starbank.recommender.model.DynamicRule;
 import com.starbank.recommender.model.Rule;
-import com.starbank.recommender.repository.*;
+import com.starbank.recommender.repository.h2.TransactionRepository;
+import com.starbank.recommender.repository.h2.UserRepository;
+import com.starbank.recommender.repository.jpa.ArgumentRepository;
+import com.starbank.recommender.repository.jpa.DynamicRuleRepository;
+import com.starbank.recommender.repository.jpa.RuleRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import jakarta.transaction.Transactional;
@@ -14,77 +18,76 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class RuleService {
-    private final RecommendationRuleRepository recommendationRuleRepository;
-
+public class DynamicRuleService {
+    private final DynamicRuleRepository dynamicRuleRepository;
     private final RuleRepository ruleRepository;
-
     private final ArgumentRepository argumentRepository;
-
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
 
-    private static final Logger logger = LoggerFactory.getLogger(RecommendationRuleRepository.class);
+    private static final Logger logger = LoggerFactory.getLogger(DynamicRuleRepository.class);
 
-    public RuleService(RecommendationRuleRepository recommendationRuleRepository, RuleRepository ruleRepository, ArgumentRepository argumentRepository,
-                       UserRepository userRepository,TransactionRepository transactionRepository) {
-        this.recommendationRuleRepository = recommendationRuleRepository;
+    public DynamicRuleService(DynamicRuleRepository dynamicRuleRepository, RuleRepository ruleRepository, ArgumentRepository argumentRepository,
+                              UserRepository userRepository, TransactionRepository transactionRepository) {
+        this.dynamicRuleRepository = dynamicRuleRepository;
         this.ruleRepository = ruleRepository;
         this.argumentRepository = argumentRepository;
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
     }
 
-    public List<RecommendationRule> getAllRules() {
-        logger.info("Was invoked method getAllRules");
-
-        // TODO: не выдает список rule, только сведенья о продукте
-        return recommendationRuleRepository.findAll();
+    public List<DynamicRule> getAllDynamicRules() {
+        logger.info("Was invoked method getAllDynamicRules");
+        return dynamicRuleRepository.findAll();
     }
 
     @Transactional
-    public RecommendationRule addRule(RecommendationRuleDTO recommendationRuleDTO) {
-        RecommendationRule recommendationRule = new RecommendationRule()
-                .setProduct_name(recommendationRuleDTO.getProduct_name())
-                .setProduct_id(recommendationRuleDTO.getProduct_id())
-                .setText(recommendationRuleDTO.getProduct_text());
+    public DynamicRule addDynamicRule(DynamicRuleDTO dynamicRuleDTO) {
+        DynamicRule dynamicRule = new DynamicRule()
+                .setProduct_name(dynamicRuleDTO.getProduct_name())
+                .setProduct_id(dynamicRuleDTO.getProduct_id())
+                .setProduct_text(dynamicRuleDTO.getProduct_text());
 
-        recommendationRule = recommendationRuleRepository.save(recommendationRule);
+        dynamicRule = dynamicRuleRepository.save(dynamicRule);
+        List<Rule> ruleList = new ArrayList<>();
 
-        for (RuleDTO ruleDTO : recommendationRuleDTO.getRule()) {
+        for (RuleDTO ruleDTO : dynamicRuleDTO.getRule()) {
             Rule rule = new Rule()
                     .setQuery(ruleDTO.getQuery())
                     .setNegate(ruleDTO.getNegate())
-                    .setRecommendationRule(recommendationRule); // Связываем с RecommendationRule
+                    .setDynamicRule(dynamicRule);
 
             rule = ruleRepository.save(rule);
 
             for (String argumentText : ruleDTO.getArguments()) {
                 Argument argument = new Argument()
                         .setText(argumentText)
-                        .setRule(rule); // Связываем с правилом
+                        .setRule(rule);
 
                 argumentRepository.save(argument);
             }
 
-            recommendationRule.getRules().add(rule);
+            ruleList.add(rule);
         }
 
-        clearAllCaches();
-        return recommendationRule;
-    }
+        dynamicRule.setRule(ruleList);
 
+        clearAllCaches();
+        return dynamicRule;
+    }
 
     public void deleteRule(UUID ruleId) {
         logger.info("Was invoked method deleteRule");
         clearAllCaches();
-        recommendationRuleRepository.deleteById(ruleId);
+        dynamicRuleRepository.deleteById(ruleId);
     }
+
     @Cacheable(value = "userOfCache", key = "#userId.toString() + '-' + #productType")
     public boolean isUserOfProductType(UUID userId, String productType) {
         return transactionRepository.isUserOfProductType(userId, productType);
@@ -110,11 +113,11 @@ public class RuleService {
     }
 
     // TODO: не получается продумать валидацию.
-    public Optional<Recommendation> validateRule(RecommendationRule rule, UUID userId) {
+    public Optional<Recommendation> validateRule(DynamicRule rule, UUID userId) {
         logger.info("Validating rule for user {}", userId);
         boolean isValid = true;
 
-        for (Rule r : rule.getRules()) {
+        for (Rule r : rule.getRule()) {
             switch (r.getQuery()) {
                 case "USER_OF":
                     if (!transactionRepository.isUserOfProductType(userId, r.getArguments().get(0)) == r.isNegate()) {
@@ -145,7 +148,7 @@ public class RuleService {
             return Optional.of(new Recommendation()
                     .setName(rule.getProduct_name())
                     .setId(rule.getProduct_id())
-                    .setText(rule.getText()));
+                    .setText(rule.getProduct_text()));
         } else {
             return Optional.empty();
         }
