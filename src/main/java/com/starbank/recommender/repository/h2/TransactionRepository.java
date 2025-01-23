@@ -48,12 +48,16 @@ public class TransactionRepository {
     }
 
     public boolean compareTransactionSum(UUID userId, String productType, String transactionType, String comparison, int amount) {
-        String sql = "SELECT SUM(amount) FROM transactions WHERE user_id = ? AND product_type = ? AND transaction_type = ?";
-        Integer sum = transactionDataSource.queryForObject(sql, Integer.class, userId.toString(), productType, transactionType);
-
-        if (sum == null) {
-            sum = 0;
+        Integer sum = 0;
+        // Исправить SQL запросы FROM transactions,products возможно не работают. Product_type не существует в таблице Transaction!
+        try {
+            String sql = "SELECT SUM(amount) FROM transactions,products WHERE user_id = ?  AND transaction_type = ? AND product_type = ?";
+            sum = transactionDataSource.queryForObject(sql, Integer.class, userId.toString(), productType, transactionType);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
         }
+
+
 
         return switch (comparison) {
             case ">" -> sum > amount;
@@ -66,8 +70,16 @@ public class TransactionRepository {
     }
 
     public boolean compareDepositWithdrawSum(UUID userId, String productType, String comparison) {
-        String depositSql = "SELECT SUM(amount) FROM transactions WHERE user_id = ? AND product_type = ? AND transaction_type = 'DEPOSIT'";
-        String withdrawSql = "SELECT SUM(amount) FROM transactions WHERE user_id = ? AND product_type = ? AND transaction_type = 'WITHDRAW'";
+        String depositSql = "", withdrawSql = "";
+        // Исправить SQL запросы FROM transactions,products возможно не работают. Product_type не существует в таблице Transaction!
+        try {
+            depositSql = "SELECT SUM(amount) FROM transactions,products WHERE user_id = ? AND product_type = ? AND transaction_type = 'DEPOSIT'";
+            withdrawSql = "SELECT SUM(amount) FROM transactions,products WHERE user_id = ? AND product_type = ? AND transaction_type = 'WITHDRAW'";
+
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
 
         Integer depositSum = transactionDataSource.queryForObject(depositSql, Integer.class, userId.toString(), productType);
         Integer withdrawSum = transactionDataSource.queryForObject(withdrawSql, Integer.class, userId.toString(), productType);

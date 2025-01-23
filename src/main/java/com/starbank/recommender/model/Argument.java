@@ -11,8 +11,9 @@ import java.util.UUID;
 @Entity
 public class Argument {
     @Id
-    @GeneratedValue
-    private UUID argument_id;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "argument_id")
+    private UUID argumentId;
 
     @ManyToOne
     @JoinColumn(name = "rule_id")

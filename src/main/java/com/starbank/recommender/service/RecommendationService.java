@@ -1,10 +1,8 @@
 package com.starbank.recommender.service;
 
-import com.starbank.recommender.model.DynamicRule;
-import com.starbank.recommender.model.Recommendation;
-import com.starbank.recommender.model.Rule;
-import com.starbank.recommender.model.Transaction;
+import com.starbank.recommender.model.*;
 import com.starbank.recommender.repository.h2.TransactionRepository;
+import com.starbank.recommender.repository.jpa.ArgumentRepository;
 import com.starbank.recommender.repository.jpa.RuleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,12 +18,14 @@ import com.starbank.recommender.service.utility.RecommendationRuleSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class RecommendationService {
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
     private final RuleRepository ruleRepository;
+    private final ArgumentRepository argumentRepository;
     private final RecommendationRuleSet invest500;
     private final RecommendationRuleSet simpleCredit;
     private final RecommendationRuleSet topSaving;
@@ -33,38 +33,44 @@ public class RecommendationService {
     private final Logger logger = LoggerFactory.getLogger(RecommendationService.class);
 
     public RecommendationService(UserRepository userRepository,
-                                 DynamicRuleService dynamicRuleService,
                                  TransactionRepository transactionRepository,
                                  RuleRepository ruleRepository,
+                                 ArgumentRepository argumentRepository,
                                  @Qualifier("topSaving") RecommendationRuleSet topSaving,
                                  @Qualifier("simpleCredit") RecommendationRuleSet simpleCredit,
                                  @Qualifier("invest500") RecommendationRuleSet invest500) {
         this.transactionRepository = transactionRepository;
         this.ruleRepository = ruleRepository;
         this.userRepository = userRepository;
+        this.argumentRepository = argumentRepository;
         this.invest500 = invest500;
         this.simpleCredit = simpleCredit;
         this.topSaving = topSaving;
     }
 
-    @Cacheable()
+    // @Cacheable()
     public UserRecommendationSet checkRecommendation(UUID userId) {
         logger.info("Invoke method checkRecommendation");
         validateUserId(userId);
         UserRecommendationSet userRecommendationSet = new UserRecommendationSet(userId);
 
-        for (Rule r: ruleRepository.findAll()) {
+        for (Rule r : ruleRepository.findAll()) {
+            List<Argument> argumentList = argumentRepository.findAll().stream()
+                    .filter(argument -> r.getRule_id() == argument.getRule().getRule_id())
+                    .toList();
+
             switch (r.getQuery()) {
                 case "USER_OF":
-                    if (transactionRepository.isUserOfProductType(userId, r.getArguments().get(0)) == r.isNegate()) {
+                    if (r.getNegate() != transactionRepository.isUserOfProductType(userId, argumentList.get(0).getText())) {
                         Recommendation rec = new Recommendation();
                         rec.setName(r.getDynamicRule().getProduct_name());
                         rec.setText(r.getDynamicRule().getProduct_text());
+                        rec.setId(UUID.randomUUID());
                         userRecommendationSet.addRecommendation(rec);
                     }
                     break;
                 case "ACTIVE_USER_OF":
-                    if (transactionRepository.isUserActiveOfProductType(userId, r.getArguments().get(0)) == r.isNegate()) {
+                    if (r.getNegate() != transactionRepository.isUserActiveOfProductType(userId, argumentList.get(0).getText())) {
                         Recommendation rec = new Recommendation();
                         rec.setName(r.getDynamicRule().getProduct_name());
                         rec.setText(r.getDynamicRule().getProduct_text());
@@ -72,40 +78,19 @@ public class RecommendationService {
                     }
                     break;
                 case "TRANSACTION_SUM_COMPARE":
-                    if (transactionRepository.compareTransactionSum(userId, r.getArguments().get(0), r.getArguments().get(1), r.getArguments().get(2), Integer.parseInt(r.getArguments().get(3))) == r.isNegate()) {
+                    if (r.getNegate() != transactionRepository.compareTransactionSum(userId,
+                            argumentList.get(0).getText(),
+                            argumentList.get(1).getText(),
+                            argumentList.get(2).getText(),
+                            Integer.parseInt(argumentList.get(3).getText()))) {
                         Recommendation rec = new Recommendation();
                         rec.setName(r.getDynamicRule().getProduct_name());
                         rec.setText(r.getDynamicRule().getProduct_text());
                         userRecommendationSet.addRecommendation(rec);
                     }
                     break;
-                case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW":
-                    if (transactionRepository.compareDepositWithdrawSum(userId, r.getArguments().get(0), r.getArguments().get(1)) == r.isNegate()) {
-                        Recommendation rec = new Recommendation();
-                        rec.setName(r.getDynamicRule().getProduct_name());
-                        rec.setText(r.getDynamicRule().getProduct_text());
-                        userRecommendationSet.addRecommendation(rec);
-                    }
-                    break;
-                default:
-                    throw new IllegalArgumentException("");
             }
         }
-
-
-        invest500.validateRecommendationRule(userId).ifPresent(recommendation -> {
-            logger.debug("Invest500 recommendation: {}", recommendation);
-            userRecommendationSet.addRecommendation(recommendation);
-        });
-        simpleCredit.validateRecommendationRule(userId).ifPresent(recommendation -> {
-            logger.debug("SimpleCredit recommendation: {}", recommendation);
-            userRecommendationSet.addRecommendation(recommendation);
-        });
-        topSaving.validateRecommendationRule(userId).ifPresent(recommendation -> {
-            logger.debug("TopSaving recommendation: {}", recommendation);
-            userRecommendationSet.addRecommendation(recommendation);
-        });
-
 
         return userRecommendationSet;
     }

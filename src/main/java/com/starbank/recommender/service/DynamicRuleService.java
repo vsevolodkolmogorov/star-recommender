@@ -63,8 +63,6 @@ public class DynamicRuleService {
                     .setNegate(ruleDTO.getNegate())
                     .setDynamicRule(dynamicRule);
 
-            rule = ruleRepository.save(rule);
-
             for (String argumentText : ruleDTO.getArguments()) {
                 Argument argument = new Argument()
                         .setText(argumentText)
@@ -73,10 +71,14 @@ public class DynamicRuleService {
                 argumentRepository.save(argument);
             }
 
+            rule = ruleRepository.save(rule);
+
             ruleList.add(rule);
         }
 
         dynamicRule.setRule(ruleList);
+
+
 
         clearAllCaches();
         return dynamicRule;
