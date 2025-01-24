@@ -49,15 +49,12 @@ public class TransactionRepository {
 
     public boolean compareTransactionSum(UUID userId, String productType, String transactionType, String comparison, int amount) {
         Integer sum = 0;
-        // Исправить SQL запросы FROM transactions,products возможно не работают. Product_type не существует в таблице Transaction!
         try {
-            String sql = "SELECT SUM(amount) FROM transactions,products WHERE user_id = ?  AND transaction_type = ? AND product_type = ?";
-            sum = transactionDataSource.queryForObject(sql, Integer.class, userId.toString(), productType, transactionType);
+            String sql = "SELECT SUM(t.amount) FROM transactions t INNER JOIN products p ON t.product_id = p.id WHERE t.user_id = ? AND t.type = ? AND p.type = ?";
+            sum = transactionDataSource.queryForObject(sql, Integer.class, userId, transactionType, productType);
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
-
-
 
         return switch (comparison) {
             case ">" -> sum > amount;
@@ -71,10 +68,9 @@ public class TransactionRepository {
 
     public boolean compareDepositWithdrawSum(UUID userId, String productType, String comparison) {
         String depositSql = "", withdrawSql = "";
-        // Исправить SQL запросы FROM transactions,products возможно не работают. Product_type не существует в таблице Transaction!
         try {
-            depositSql = "SELECT SUM(amount) FROM transactions,products WHERE user_id = ? AND product_type = ? AND transaction_type = 'DEPOSIT'";
-            withdrawSql = "SELECT SUM(amount) FROM transactions,products WHERE user_id = ? AND product_type = ? AND transaction_type = 'WITHDRAW'";
+            depositSql = "SELECT SUM(t.amount) FROM transactions t INNER JOIN products p ON t.product_id = p.id WHERE t.user_id = ? AND p.type = ? AND t.type = 'DEPOSIT'";
+            withdrawSql = "SELECT SUM(t.amount) FROM transactions t INNER JOIN products p ON t.product_id = p.id WHERE t.user_id = ? AND p.type = ? AND t.type = 'WITHDRAW'";
 
         } catch (Exception e) {
             System.out.println(e.getMessage());

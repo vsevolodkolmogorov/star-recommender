@@ -53,6 +53,8 @@ public class RecommendationService {
         logger.info("Invoke method checkRecommendation");
         validateUserId(userId);
         UserRecommendationSet userRecommendationSet = new UserRecommendationSet(userId);
+        Recommendation rec = new Recommendation();
+        rec.setId(UUID.randomUUID());
 
         for (Rule r : ruleRepository.findAll()) {
             List<Argument> argumentList = argumentRepository.findAll().stream()
@@ -62,19 +64,14 @@ public class RecommendationService {
             switch (r.getQuery()) {
                 case "USER_OF":
                     if (r.getNegate() != transactionRepository.isUserOfProductType(userId, argumentList.get(0).getText())) {
-                        Recommendation rec = new Recommendation();
                         rec.setName(r.getDynamicRule().getProduct_name());
                         rec.setText(r.getDynamicRule().getProduct_text());
-                        rec.setId(UUID.randomUUID());
-                        userRecommendationSet.addRecommendation(rec);
                     }
                     break;
                 case "ACTIVE_USER_OF":
                     if (r.getNegate() != transactionRepository.isUserActiveOfProductType(userId, argumentList.get(0).getText())) {
-                        Recommendation rec = new Recommendation();
                         rec.setName(r.getDynamicRule().getProduct_name());
                         rec.setText(r.getDynamicRule().getProduct_text());
-                        userRecommendationSet.addRecommendation(rec);
                     }
                     break;
                 case "TRANSACTION_SUM_COMPARE":
@@ -83,14 +80,37 @@ public class RecommendationService {
                             argumentList.get(1).getText(),
                             argumentList.get(2).getText(),
                             Integer.parseInt(argumentList.get(3).getText()))) {
-                        Recommendation rec = new Recommendation();
                         rec.setName(r.getDynamicRule().getProduct_name());
                         rec.setText(r.getDynamicRule().getProduct_text());
-                        userRecommendationSet.addRecommendation(rec);
+                    }
+                    break;
+                case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW":
+                    if (r.getNegate() != transactionRepository.compareDepositWithdrawSum(userId,
+                            argumentList.get(0).getText(),
+                            argumentList.get(1).getText())) {
+                        rec.setName(r.getDynamicRule().getProduct_name());
+                        rec.setText(r.getDynamicRule().getProduct_text());
                     }
                     break;
             }
+
+            if (rec.getText() != null && rec.getName() != null) {
+                userRecommendationSet.addRecommendation(rec);
+            }
         }
+
+        invest500.validateRecommendationRule(userId).ifPresent(recommendation -> {
+            logger.debug("Invest500 recommendation: {}", recommendation);
+            userRecommendationSet.addRecommendation(recommendation);
+        });
+        simpleCredit.validateRecommendationRule(userId).ifPresent(recommendation -> {
+            logger.debug("SimpleCredit recommendation: {}", recommendation);
+            userRecommendationSet.addRecommendation(recommendation);
+        });
+        topSaving.validateRecommendationRule(userId).ifPresent(recommendation -> {
+            logger.debug("TopSaving recommendation: {}", recommendation);
+            userRecommendationSet.addRecommendation(recommendation);
+        });
 
         return userRecommendationSet;
     }
