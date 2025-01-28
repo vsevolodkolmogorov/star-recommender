@@ -43,17 +43,26 @@ public class TransactionRepository {
 
     public boolean isUserActiveOfProductType(UUID userId, String productType) {
         String sql = "SELECT COUNT(*) FROM transactions t JOIN products p ON t.product_id = p.id WHERE t.user_id = ? AND p.type = ? GROUP BY t.product_id HAVING COUNT(*) >= 5";
-        Integer count = transactionDataSource.queryForObject(sql, Integer.class, userId.toString(), productType);
-        return count != null && count > 0;
+        List<Integer> counts = transactionDataSource.queryForList(sql, Integer.class, userId.toString(), productType);
+        for (Integer count : counts) {
+            if (count != null && count > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean compareTransactionSum(UUID userId, String productType, String transactionType, String comparison, int amount) {
-        Integer sum = 0;
+        Integer sum = null;
         try {
             String sql = "SELECT SUM(t.amount) FROM transactions t INNER JOIN products p ON t.product_id = p.id WHERE t.user_id = ? AND t.type = ? AND p.type = ?";
             sum = transactionDataSource.queryForObject(sql, Integer.class, userId, transactionType, productType);
         } catch (Exception e) {
             System.out.println(e.getMessage());
+        }
+
+        if (sum == null) {
+            sum = 0;
         }
 
         return switch (comparison) {

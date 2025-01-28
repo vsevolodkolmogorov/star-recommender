@@ -11,8 +11,12 @@ import com.starbank.recommender.repository.h2.UserRepository;
 import com.starbank.recommender.repository.jpa.ArgumentRepository;
 import com.starbank.recommender.repository.jpa.DynamicRuleRepository;
 import com.starbank.recommender.repository.jpa.RuleRepository;
+import com.starbank.recommender.service.utility.UserProductService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,17 +33,22 @@ public class DynamicRuleService {
     private final RuleRepository ruleRepository;
     private final ArgumentRepository argumentRepository;
     private final UserRepository userRepository;
-    private final TransactionRepository transactionRepository;
+    private TransactionRepository transactionRepository;
+    private final UserProductService userProductService;
+
+    @Autowired
+    public void setCacheManager(CacheManager cacheManager) {
+    }
 
     private static final Logger logger = LoggerFactory.getLogger(DynamicRuleRepository.class);
 
     public DynamicRuleService(DynamicRuleRepository dynamicRuleRepository, RuleRepository ruleRepository, ArgumentRepository argumentRepository,
-                              UserRepository userRepository, TransactionRepository transactionRepository) {
+                              UserRepository userRepository, @Lazy UserProductService userProductService) {
         this.dynamicRuleRepository = dynamicRuleRepository;
         this.ruleRepository = ruleRepository;
         this.argumentRepository = argumentRepository;
         this.userRepository = userRepository;
-        this.transactionRepository = transactionRepository;
+        this.userProductService = userProductService;
     }
 
     public List<DynamicRule> getAllDynamicRules() {
@@ -90,72 +99,42 @@ public class DynamicRuleService {
         dynamicRuleRepository.deleteById(ruleId);
     }
 
-    // Запросы к базе данных
-
-    // # Является пользователем продукта — USER_OF
-
-    @Cacheable(value = "userOfCache", key = "#userId.toString() + '-' + #productType")
-    public boolean isUserOfProductType(UUID userId, String productType) {
-        return transactionRepository.isUserOfProductType(userId, productType);
-    }
-
-    // # Является активным пользователем продукта — ACTIVE_USER_OF.
-    // Активный пользователь это пользователь, у которого есть хотя бы пять транзакций по продуктам данного типа X.
-
-    @Cacheable(value = "activeUserOfCache", key = "#userId.toString() + '-' + #productType")
-    public boolean isUserActiveOfProductType(UUID userId, String productType) {
-        return transactionRepository.isUserActiveOfProductType(userId, productType);
-    }
-
-    // # Сравнение суммы транзакций с константой — TRANSACTION_SUM_COMPARE
-    // Этот запрос сравнивает сумму всех транзакций типа Y по продуктам типа X с некоторой константой C.
-
-    @Cacheable(value = "transactionSumCompareCache", key = "#userId.toString() + '-' + #productType + '-' + #transactionType + '-' + #comparison + '-' + #amount")
-    public boolean compareTransactionSum(UUID userId, String productType, String transactionType, String comparison, int amount) {
-        return transactionRepository.compareTransactionSum(userId, productType, transactionType, comparison, amount);
-    }
-
-    // # Сравнение суммы пополнений с тратами по всем продуктам одного типа - TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW
-    // Этот запрос сравнивает сумму всех транзакций типа DEPOSIT с суммой всех транзакций типа WITHDRAW по продукту X.
-
-    @Cacheable(value = "transactionSumCompareDepositWithdrawCache", key = "#userId.toString() + '-' + #productType + '-' + #comparison")
-    public boolean compareDepositWithdrawSum(UUID userId, String productType, String comparison) {
-        return transactionRepository.compareDepositWithdrawSum(userId, productType, comparison);
-    }
 
     @CacheEvict(value = {"userOfCache", "activeUserOfCache", "transactionSumCompareCache", "transactionSumCompareDepositWithdrawCache"}, allEntries = true)
     public void clearAllCaches() {
     }
 
-    // TODO: не получается продумать валидацию.
     public Optional<Recommendation> validateRule(DynamicRule rule, UUID userId) {
         logger.info("Validating rule for user {}", userId);
         boolean isValid = true;
 
         for (Rule r : rule.getRule()) {
-            switch (r.getQuery()) {
-                case "USER_OF":
-                    if (!transactionRepository.isUserOfProductType(userId, r.getArguments().get(0)) == r.isNegate()) {
-                        isValid = false;
-                    }
-                    break;
-                case "ACTIVE_USER_OF":
-                    if (!transactionRepository.isUserActiveOfProductType(userId, r.getArguments().get(0)) == r.isNegate()) {
-                        isValid = false;
-                    }
-                    break;
-                case "TRANSACTION_SUM_COMPARE":
-                    if (!transactionRepository.compareTransactionSum(userId, r.getArguments().get(0), r.getArguments().get(1), r.getArguments().get(2), Integer.parseInt(r.getArguments().get(3))) == r.isNegate()) {
-                        isValid = false;
-                    }
-                    break;
-                case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW":
-                    if (!transactionRepository.compareDepositWithdrawSum(userId, r.getArguments().get(0), r.getArguments().get(1)) == r.isNegate()) {
-                        isValid = false;
-                    }
-                    break;
-                default:
-                    throw new IllegalArgumentException("");
+            boolean ruleResult = switch (r.getQuery()) {
+                case "USER_OF" -> userProductService.isUserOfProductType(userId, r.getArguments().get(0)); // Изменено
+                case "ACTIVE_USER_OF" ->
+                        userProductService.isUserActiveOfProductType(userId, r.getArguments().get(0)); // Изменено
+                case "TRANSACTION_SUM_COMPARE" -> userProductService.compareTransactionSum(
+                        userId,
+                        r.getArguments().get(0),
+                        r.getArguments().get(1),
+                        r.getArguments().get(2),
+                        Integer.parseInt(r.getArguments().get(3))
+                );
+                case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW" -> userProductService.compareDepositWithdrawSum(
+                        userId,
+                        r.getArguments().get(0),
+                        r.getArguments().get(1)
+                );
+                default -> throw new IllegalArgumentException("Unknown rule query: " + r.getQuery());
+            };
+
+            if (r.isNegate()) {
+                ruleResult = !ruleResult;
+            }
+
+            if (!ruleResult) {
+                isValid = false;
+                break;
             }
         }
 

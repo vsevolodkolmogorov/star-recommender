@@ -4,6 +4,7 @@ import com.starbank.recommender.model.*;
 import com.starbank.recommender.repository.h2.TransactionRepository;
 import com.starbank.recommender.repository.jpa.ArgumentRepository;
 import com.starbank.recommender.repository.jpa.RuleRepository;
+import com.starbank.recommender.service.utility.UserProductService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -23,7 +24,7 @@ import java.util.stream.Collectors;
 @Service
 public class RecommendationService {
     private final UserRepository userRepository;
-    private final TransactionRepository transactionRepository;
+    private final UserProductService userProductService;
     private final RuleRepository ruleRepository;
     private final ArgumentRepository argumentRepository;
     private final RecommendationRuleSet invest500;
@@ -33,13 +34,13 @@ public class RecommendationService {
     private final Logger logger = LoggerFactory.getLogger(RecommendationService.class);
 
     public RecommendationService(UserRepository userRepository,
-                                 TransactionRepository transactionRepository,
+                                 UserProductService userProductService,
                                  RuleRepository ruleRepository,
                                  ArgumentRepository argumentRepository,
                                  @Qualifier("topSaving") RecommendationRuleSet topSaving,
                                  @Qualifier("simpleCredit") RecommendationRuleSet simpleCredit,
                                  @Qualifier("invest500") RecommendationRuleSet invest500) {
-        this.transactionRepository = transactionRepository;
+        this.userProductService = userProductService;
         this.ruleRepository = ruleRepository;
         this.userRepository = userRepository;
         this.argumentRepository = argumentRepository;
@@ -48,7 +49,7 @@ public class RecommendationService {
         this.topSaving = topSaving;
     }
 
-    // @Cacheable()
+    @Cacheable(value = "recommendationCache", key = "#userId.toString()")
     public UserRecommendationSet checkRecommendation(UUID userId) {
         logger.info("Invoke method checkRecommendation");
         validateUserId(userId);
@@ -63,19 +64,19 @@ public class RecommendationService {
 
             switch (r.getQuery()) {
                 case "USER_OF":
-                    if (r.getNegate() != transactionRepository.isUserOfProductType(userId, argumentList.get(0).getText())) {
+                    if (r.getNegate() != userProductService.isUserOfProductType(userId, argumentList.get(0).getText())) {
                         rec.setName(r.getDynamicRule().getProduct_name());
                         rec.setText(r.getDynamicRule().getProduct_text());
                     }
                     break;
                 case "ACTIVE_USER_OF":
-                    if (r.getNegate() != transactionRepository.isUserActiveOfProductType(userId, argumentList.get(0).getText())) {
+                    if (r.getNegate() != userProductService.isUserActiveOfProductType(userId, argumentList.get(0).getText())) {
                         rec.setName(r.getDynamicRule().getProduct_name());
                         rec.setText(r.getDynamicRule().getProduct_text());
                     }
                     break;
                 case "TRANSACTION_SUM_COMPARE":
-                    if (r.getNegate() != transactionRepository.compareTransactionSum(userId,
+                    if (r.getNegate() != userProductService.compareTransactionSum(userId,
                             argumentList.get(0).getText(),
                             argumentList.get(1).getText(),
                             argumentList.get(2).getText(),
@@ -85,7 +86,7 @@ public class RecommendationService {
                     }
                     break;
                 case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW":
-                    if (r.getNegate() != transactionRepository.compareDepositWithdrawSum(userId,
+                    if (r.getNegate() != userProductService.compareDepositWithdrawSum(userId,
                             argumentList.get(0).getText(),
                             argumentList.get(1).getText())) {
                         rec.setName(r.getDynamicRule().getProduct_name());
