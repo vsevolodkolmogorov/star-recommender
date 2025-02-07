@@ -30,6 +30,7 @@ public class RecommendationService {
     private final RecommendationRuleSet invest500;
     private final RecommendationRuleSet simpleCredit;
     private final RecommendationRuleSet topSaving;
+    private final DynamicRuleService dynamicRuleService;
 
     private final Logger logger = LoggerFactory.getLogger(RecommendationService.class);
 
@@ -39,7 +40,8 @@ public class RecommendationService {
                                  ArgumentRepository argumentRepository,
                                  @Qualifier("topSaving") RecommendationRuleSet topSaving,
                                  @Qualifier("simpleCredit") RecommendationRuleSet simpleCredit,
-                                 @Qualifier("invest500") RecommendationRuleSet invest500) {
+                                 @Qualifier("invest500") RecommendationRuleSet invest500,
+                                 DynamicRuleService dynamicRuleService) {
         this.userProductService = userProductService;
         this.ruleRepository = ruleRepository;
         this.userRepository = userRepository;
@@ -47,6 +49,7 @@ public class RecommendationService {
         this.invest500 = invest500;
         this.simpleCredit = simpleCredit;
         this.topSaving = topSaving;
+        this.dynamicRuleService = dynamicRuleService;
     }
 
     @Cacheable(value = "recommendationCache", key = "#userId.toString()")
@@ -62,56 +65,42 @@ public class RecommendationService {
                     .filter(argument -> r.getRule_id() == argument.getRule().getRule_id())
                     .toList();
 
+            boolean ruleTriggered = false;
+
             switch (r.getQuery()) {
                 case "USER_OF":
-                    if (r.getNegate() != userProductService.isUserOfProductType(userId, argumentList.get(0).getText())) {
-                        rec.setName(r.getDynamicRule().getProduct_name());
-                        rec.setText(r.getDynamicRule().getProduct_text());
-                    }
+                    ruleTriggered = r.getNegate() != userProductService.isUserOfProductType(userId, argumentList.get(0).getText());
                     break;
                 case "ACTIVE_USER_OF":
-                    if (r.getNegate() != userProductService.isUserActiveOfProductType(userId, argumentList.get(0).getText())) {
-                        rec.setName(r.getDynamicRule().getProduct_name());
-                        rec.setText(r.getDynamicRule().getProduct_text());
-                    }
+                    ruleTriggered = r.getNegate() != userProductService.isUserActiveOfProductType(userId, argumentList.get(0).getText());
                     break;
                 case "TRANSACTION_SUM_COMPARE":
-                    if (r.getNegate() != userProductService.compareTransactionSum(userId,
+                    ruleTriggered = r.getNegate() != userProductService.compareTransactionSum(
+                            userId,
                             argumentList.get(0).getText(),
                             argumentList.get(1).getText(),
                             argumentList.get(2).getText(),
-                            Integer.parseInt(argumentList.get(3).getText()))) {
-                        rec.setName(r.getDynamicRule().getProduct_name());
-                        rec.setText(r.getDynamicRule().getProduct_text());
-                    }
+                            Integer.parseInt(argumentList.get(3).getText())
+                    );
                     break;
                 case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW":
-                    if (r.getNegate() != userProductService.compareDepositWithdrawSum(userId,
+                    ruleTriggered = r.getNegate() != userProductService.compareDepositWithdrawSum(
+                            userId,
                             argumentList.get(0).getText(),
-                            argumentList.get(1).getText())) {
-                        rec.setName(r.getDynamicRule().getProduct_name());
-                        rec.setText(r.getDynamicRule().getProduct_text());
-                    }
+                            argumentList.get(1).getText()
+                    );
                     break;
             }
 
-            if (rec.getText() != null && rec.getName() != null) {
+            if (ruleTriggered) {
+                dynamicRuleService.incrementRuleStatistic(r.getRule_id());
+
+
+                rec.setName(r.getDynamicRule().getProduct_name());
+                rec.setText(r.getDynamicRule().getProduct_text());
                 userRecommendationSet.addRecommendation(rec);
             }
         }
-
-        invest500.validateRecommendationRule(userId).ifPresent(recommendation -> {
-            logger.debug("Invest500 recommendation: {}", recommendation);
-            userRecommendationSet.addRecommendation(recommendation);
-        });
-        simpleCredit.validateRecommendationRule(userId).ifPresent(recommendation -> {
-            logger.debug("SimpleCredit recommendation: {}", recommendation);
-            userRecommendationSet.addRecommendation(recommendation);
-        });
-        topSaving.validateRecommendationRule(userId).ifPresent(recommendation -> {
-            logger.debug("TopSaving recommendation: {}", recommendation);
-            userRecommendationSet.addRecommendation(recommendation);
-        });
 
         return userRecommendationSet;
     }
