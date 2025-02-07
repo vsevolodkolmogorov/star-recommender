@@ -2,20 +2,18 @@ package com.starbank.recommender.service;
 
 import com.starbank.recommender.dto.DynamicRuleDTO;
 import com.starbank.recommender.dto.RuleDTO;
-import com.starbank.recommender.model.Argument;
-import com.starbank.recommender.model.Recommendation;
-import com.starbank.recommender.model.DynamicRule;
-import com.starbank.recommender.model.Rule;
+import com.starbank.recommender.model.*;
+import com.starbank.recommender.model.RuleStatistic;
 import com.starbank.recommender.repository.h2.TransactionRepository;
 import com.starbank.recommender.repository.h2.UserRepository;
 import com.starbank.recommender.repository.jpa.ArgumentRepository;
 import com.starbank.recommender.repository.jpa.DynamicRuleRepository;
 import com.starbank.recommender.repository.jpa.RuleRepository;
+import com.starbank.recommender.repository.jpa.RuleStatisticRepository;
 import com.starbank.recommender.service.utility.UserProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
@@ -35,6 +33,7 @@ public class DynamicRuleService {
     private final UserRepository userRepository;
     private TransactionRepository transactionRepository;
     private final UserProductService userProductService;
+    private final RuleStatisticRepository ruleStatisticRepository;
 
     @Autowired
     public void setCacheManager(CacheManager cacheManager) {
@@ -43,12 +42,13 @@ public class DynamicRuleService {
     private static final Logger logger = LoggerFactory.getLogger(DynamicRuleRepository.class);
 
     public DynamicRuleService(DynamicRuleRepository dynamicRuleRepository, RuleRepository ruleRepository, ArgumentRepository argumentRepository,
-                              UserRepository userRepository, @Lazy UserProductService userProductService) {
+                              UserRepository userRepository, RuleStatisticRepository ruleStatisticRepository, @Lazy UserProductService userProductService) {
         this.dynamicRuleRepository = dynamicRuleRepository;
         this.ruleRepository = ruleRepository;
         this.argumentRepository = argumentRepository;
         this.userRepository = userRepository;
         this.userProductService = userProductService;
+        this.ruleStatisticRepository = ruleStatisticRepository;
     }
 
     public List<DynamicRule> getAllDynamicRules() {
@@ -139,6 +139,7 @@ public class DynamicRuleService {
         }
 
         if (isValid) {
+            incrementRuleStatistic(rule.getId());
             return Optional.of(new Recommendation()
                     .setName(rule.getProduct_name())
                     .setId(rule.getProduct_id())
@@ -168,6 +169,22 @@ public class DynamicRuleService {
         String productType = arguments.get(0);
         String comparison = arguments.get(1);
         return transactionRepository.compareDepositWithdrawSum(userId, productType, comparison);
+    }
+    @Transactional
+    public void incrementRuleStatistic(UUID rule_Id) {
+        Optional<RuleStatistic> existingStatOpt = ruleStatisticRepository.findByRule_Rule_Id(rule_Id);
+        if (existingStatOpt.isPresent()) {
+            RuleStatistic existingStat = existingStatOpt.get();
+            existingStat.setTriggerCount(existingStat.getTriggerCount() + 1);
+            ruleStatisticRepository.save(existingStat);
+        } else {
+            Rule rule = ruleRepository.findById(rule_Id)
+                    .orElseThrow(() -> new IllegalArgumentException("Rule not founb by ID: " + rule_Id));
+            RuleStatistic newStat = new RuleStatistic();
+            newStat.setRule(rule);
+            newStat.setTriggerCount(1);
+            ruleStatisticRepository.save(newStat);
+        }
     }
 
 }

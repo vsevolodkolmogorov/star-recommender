@@ -37,4 +37,8 @@ public class Rule {
     public Boolean isNegate() {
         return this.negate;
     }
+
+    public UUID getRuleId() {
+        return this.rule_id;
+    }
 }
