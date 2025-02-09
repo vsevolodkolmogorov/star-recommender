@@ -30,9 +30,6 @@ public class DynamicRuleService {
     private final DynamicRuleRepository dynamicRuleRepository;
     private final RuleRepository ruleRepository;
     private final ArgumentRepository argumentRepository;
-    private final UserRepository userRepository;
-    private TransactionRepository transactionRepository;
-    private final UserProductService userProductService;
     private final RuleStatisticRepository ruleStatisticRepository;
 
     @Autowired
@@ -42,12 +39,10 @@ public class DynamicRuleService {
     private static final Logger logger = LoggerFactory.getLogger(DynamicRuleRepository.class);
 
     public DynamicRuleService(DynamicRuleRepository dynamicRuleRepository, RuleRepository ruleRepository, ArgumentRepository argumentRepository,
-                              UserRepository userRepository, RuleStatisticRepository ruleStatisticRepository, @Lazy UserProductService userProductService) {
+                              RuleStatisticRepository ruleStatisticRepository) {
         this.dynamicRuleRepository = dynamicRuleRepository;
         this.ruleRepository = ruleRepository;
         this.argumentRepository = argumentRepository;
-        this.userRepository = userRepository;
-        this.userProductService = userProductService;
         this.ruleStatisticRepository = ruleStatisticRepository;
     }
 
@@ -88,7 +83,6 @@ public class DynamicRuleService {
         dynamicRule.setRule(ruleList);
 
 
-
         clearAllCaches();
         return dynamicRule;
     }
@@ -104,72 +98,6 @@ public class DynamicRuleService {
     public void clearAllCaches() {
     }
 
-    public Optional<Recommendation> validateRule(DynamicRule rule, UUID userId) {
-        logger.info("Validating rule for user {}", userId);
-        boolean isValid = true;
-
-        for (Rule r : rule.getRule()) {
-            boolean ruleResult = switch (r.getQuery()) {
-                case "USER_OF" -> userProductService.isUserOfProductType(userId, r.getArguments().get(0)); // Изменено
-                case "ACTIVE_USER_OF" ->
-                        userProductService.isUserActiveOfProductType(userId, r.getArguments().get(0)); // Изменено
-                case "TRANSACTION_SUM_COMPARE" -> userProductService.compareTransactionSum(
-                        userId,
-                        r.getArguments().get(0),
-                        r.getArguments().get(1),
-                        r.getArguments().get(2),
-                        Integer.parseInt(r.getArguments().get(3))
-                );
-                case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW" -> userProductService.compareDepositWithdrawSum(
-                        userId,
-                        r.getArguments().get(0),
-                        r.getArguments().get(1)
-                );
-                default -> throw new IllegalArgumentException("Unknown rule query: " + r.getQuery());
-            };
-
-            if (r.isNegate()) {
-                ruleResult = !ruleResult;
-            }
-
-            if (!ruleResult) {
-                isValid = false;
-                break;
-            }
-        }
-
-        if (isValid) {
-            incrementRuleStatistic(rule.getId());
-            return Optional.of(new Recommendation()
-                    .setName(rule.getProduct_name())
-                    .setId(rule.getProduct_id())
-                    .setText(rule.getProduct_text()));
-        } else {
-            return Optional.empty();
-        }
-    }
-
-    private boolean validateUserOf(UUID userId, String productType) {
-        return userRepository.isUserOfProductType(userId, productType);
-    }
-
-    private boolean validateActiveUserOf(UUID userId, String productType) {
-        return userRepository.isUserActiveOfProductType(userId, productType);
-    }
-
-    private boolean validateTransactionSumCompare(UUID userId, List<String> arguments) {
-        String productType = arguments.get(0);
-        String transactionType = arguments.get(1);
-        String comparison = arguments.get(2);
-        int amount = Integer.parseInt(arguments.get(3));
-        return transactionRepository.compareTransactionSum(userId, productType, transactionType, comparison, amount);
-    }
-
-    private boolean validateTransactionSumCompareDepositWithdraw(UUID userId, List<String> arguments) {
-        String productType = arguments.get(0);
-        String comparison = arguments.get(1);
-        return transactionRepository.compareDepositWithdrawSum(userId, productType, comparison);
-    }
     @Transactional
     public void incrementRuleStatistic(UUID rule_Id) {
         Optional<RuleStatistic> existingStatOpt = ruleStatisticRepository.findByRule_Rule_Id(rule_Id);

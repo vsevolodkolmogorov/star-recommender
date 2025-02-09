@@ -15,7 +15,7 @@ public class ManagementController {
     private final BuildProperties buildProperties;
 
     @Autowired
-    public ManagementController(BuildProperties buildProperties) {
+    public ManagementController(@Autowired(required = false) BuildProperties buildProperties) {
         this.buildProperties = buildProperties;
     }
 

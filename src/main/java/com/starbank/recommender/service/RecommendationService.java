@@ -1,7 +1,6 @@
 package com.starbank.recommender.service;
 
 import com.starbank.recommender.model.*;
-import com.starbank.recommender.repository.h2.TransactionRepository;
 import com.starbank.recommender.repository.jpa.ArgumentRepository;
 import com.starbank.recommender.repository.jpa.RuleRepository;
 import com.starbank.recommender.service.utility.UserProductService;
@@ -15,11 +14,8 @@ import com.starbank.recommender.exception.UserNotFoundException;
 import com.starbank.recommender.repository.h2.UserRepository;
 import com.starbank.recommender.service.utility.RecommendationRuleSet;
 
-
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class RecommendationService {
@@ -60,6 +56,19 @@ public class RecommendationService {
         Recommendation rec = new Recommendation();
         rec.setId(UUID.randomUUID());
 
+        invest500.validateRecommendationRule(userId).ifPresent(recommendation -> {
+            logger.debug("Invest500 recommendation: {}", recommendation);
+            userRecommendationSet.addRecommendation(recommendation);
+        });
+        simpleCredit.validateRecommendationRule(userId).ifPresent(recommendation -> {
+            logger.debug("SimpleCredit recommendation: {}", recommendation);
+            userRecommendationSet.addRecommendation(recommendation);
+        });
+        topSaving.validateRecommendationRule(userId).ifPresent(recommendation -> {
+            logger.debug("TopSaving recommendation: {}", recommendation);
+            userRecommendationSet.addRecommendation(recommendation);
+        });
+
         for (Rule r : ruleRepository.findAll()) {
             List<Argument> argumentList = argumentRepository.findAll().stream()
                     .filter(argument -> r.getRule_id() == argument.getRule().getRule_id())
@@ -94,8 +103,6 @@ public class RecommendationService {
 
             if (ruleTriggered) {
                 dynamicRuleService.incrementRuleStatistic(r.getRule_id());
-
-
                 rec.setName(r.getDynamicRule().getProduct_name());
                 rec.setText(r.getDynamicRule().getProduct_text());
                 userRecommendationSet.addRecommendation(rec);
