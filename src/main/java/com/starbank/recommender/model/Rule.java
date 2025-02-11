@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 
 import java.util.List;
@@ -21,12 +22,13 @@ public class Rule {
 
     private String query;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "argument", joinColumns = @JoinColumn(name = "rule_id"))
     @Column(name = "text")
     private List<String> arguments;
 
-    @ManyToOne
+
+    @ManyToOne()
     @Schema(hidden = true)
     @JoinColumn(name = "dynamic_rule_id", referencedColumnName = "id", nullable = false)
     @JsonBackReference

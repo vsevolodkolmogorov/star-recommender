@@ -69,34 +69,32 @@ public class RecommendationService {
             userRecommendationSet.addRecommendation(recommendation);
         });
 
-        for (Rule r : ruleRepository.findAll()) {
-            List<Argument> argumentList = argumentRepository.findAll().stream()
-                    .filter(argument -> r.getRule_id() == argument.getRule().getRule_id())
-                    .toList();
+        for (Rule r : ruleRepository.findAllWithArguments()) {
+            List<String> argumentTexts = r.getArguments();
+
+            if (argumentTexts.isEmpty()) {
+                continue;
+            }
 
             boolean ruleTriggered = false;
-
             switch (r.getQuery()) {
                 case "USER_OF":
-                    ruleTriggered = r.getNegate() != userProductService.isUserOfProductType(userId, argumentList.get(0).getText());
+                    ruleTriggered = r.getNegate() != userProductService.isUserOfProductType(userId, argumentTexts.get(0));
                     break;
                 case "ACTIVE_USER_OF":
-                    ruleTriggered = r.getNegate() != userProductService.isUserActiveOfProductType(userId, argumentList.get(0).getText());
+                    ruleTriggered = r.getNegate() != userProductService.isUserActiveOfProductType(userId, argumentTexts.get(0));
                     break;
                 case "TRANSACTION_SUM_COMPARE":
+                    if (argumentTexts.size() < 4) continue;
                     ruleTriggered = r.getNegate() != userProductService.compareTransactionSum(
-                            userId,
-                            argumentList.get(0).getText(),
-                            argumentList.get(1).getText(),
-                            argumentList.get(2).getText(),
-                            Integer.parseInt(argumentList.get(3).getText())
+                            userId, argumentTexts.get(0), argumentTexts.get(1),
+                            argumentTexts.get(2), Integer.parseInt(argumentTexts.get(3))
                     );
                     break;
                 case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW":
+                    if (argumentTexts.size() < 2) continue;
                     ruleTriggered = r.getNegate() != userProductService.compareDepositWithdrawSum(
-                            userId,
-                            argumentList.get(0).getText(),
-                            argumentList.get(1).getText()
+                            userId, argumentTexts.get(0), argumentTexts.get(1)
                     );
                     break;
             }
