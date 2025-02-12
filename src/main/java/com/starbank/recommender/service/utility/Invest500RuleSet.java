@@ -7,8 +7,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import com.starbank.recommender.model.Recommendation;
 import com.starbank.recommender.model.Transaction;
-import com.starbank.recommender.repository.RecommendationRepository;
-import com.starbank.recommender.repository.TransactionRepository;
+import com.starbank.recommender.repository.h2.RecommendationRepository;
+import com.starbank.recommender.repository.h2.TransactionRepository;
 import com.starbank.recommender.service.utility.constant.ProductType;
 
 import java.util.List;

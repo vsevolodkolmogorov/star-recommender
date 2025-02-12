@@ -1,4 +1,4 @@
-package com.starbank.recommender.repository;
+package com.starbank.recommender.repository.h2;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -29,4 +29,5 @@ public class RecommendationRepository {
             return Optional.empty();
         }
     }
+
 }
